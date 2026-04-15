@@ -73,7 +73,43 @@ const defaultState = {
     }
   ],
   games: [],
-  visitorPassword: DEFAULT_VISITOR_PASSWORD
+  visitorPassword: DEFAULT_VISITOR_PASSWORD,
+  rulesText: `## Teams & Lineup
+- Each team fields 5 players at a time (4 outfield + 1 goalkeeper).
+- A minimum of 4 players is required to start a game — no forfeits for being one short.
+- Substitutions are unlimited and can happen at any stoppage.
+- Every registered player must play at least half the game.
+
+## Match Format
+- Matches are two 10-minute halves with a 2-minute halftime break.
+- Clock runs continuously — stoppages do not pause the clock.
+- No overtime in the regular season. Tied games stay tied.
+- Tournament finals use a sudden-death penalty shootout to decide a winner.
+
+## Points & Standings
+- Win = 3 points · Draw = 1 point · Loss = 0 points
+- Standings tiebreaker order: Points → Goal Difference → Goals Scored → Head-to-Head.
+- Goals scored by the opposing team count against your goals-against total.
+- Own goals are credited to the opposing team.
+
+## Gameplay Rules
+- No sliding tackles. Standing tackles and shoulder-to-shoulder challenges are allowed.
+- Goalkeepers cannot pick up a back-pass played with a foot.
+- Kick-ins replace throw-ins on all sideline restarts.
+- Free kicks are indirect — the ball must touch another player before a goal can be scored.
+- No offside rule is in effect.
+
+## Fair Play
+- All players are expected to show respect toward opponents, teammates, and supervisors at all times.
+- Arguing with a call results in a free kick for the opposing team.
+- Deliberate handball in open play results in an indirect free kick.
+- A handball on the goal line results in a penalty kick.
+- Serious unsporting conduct can result in removal from the current game.
+
+## Weekly Honors
+- An MVP and Best Goalie are selected by the supervisor after each game.
+- Season-end trophies are awarded for: Most Goals, Most Assists, Most MVP Awards, and Best Goalie.
+- A player can win multiple awards in a single game if performance warrants it.`
 };
 
 let state = structuredClone(defaultState);
@@ -98,6 +134,9 @@ const elements = {
   authStatus: document.querySelector("#authStatus"),
   homeView: document.querySelector("#homeView"),
   rulesView: document.querySelector("#rulesView"),
+  rulesContent: document.querySelector("#rulesContent"),
+  rulesEditor: document.querySelector("#rulesEditor"),
+  saveRulesBtn: document.querySelector("#saveRulesBtn"),
   teamsView: document.querySelector("#teamsView"),
   loginView: document.querySelector("#loginView"),
   adminView: document.querySelector("#adminView"),
@@ -152,6 +191,13 @@ function bindEvents() {
   elements.tournamentForm.addEventListener("submit", handleCreateTournament);
   elements.gameForm.addEventListener("submit", handleCreateGame);
   elements.statsGameSelect.addEventListener("change", renderStatsEditor);
+  elements.saveRulesBtn.addEventListener("click", handleSaveRules);
+}
+
+function handleSaveRules() {
+  state.rulesText = elements.rulesEditor.value;
+  saveState();
+  renderRules();
 }
 
 // ─── Firebase Init ───────────────────────────────────────────────────────────
@@ -285,7 +331,8 @@ function normalizeState(input) {
     teams: Array.isArray(input?.teams) ? normalizeTeams(input.teams) : structuredClone(defaultState.teams),
     tournaments: Array.isArray(input?.tournaments) ? input.tournaments : structuredClone(defaultState.tournaments),
     games: Array.isArray(input?.games) ? input.games : [],
-    visitorPassword: input?.visitorPassword || DEFAULT_VISITOR_PASSWORD
+    visitorPassword: input?.visitorPassword || DEFAULT_VISITOR_PASSWORD,
+    rulesText: typeof input?.rulesText === "string" ? input.rulesText : defaultState.rulesText
   };
 
   nextState.games = nextState.games.map((game) => {
@@ -363,6 +410,7 @@ function render() {
   renderStandings();
   renderLeaderboard();
   renderTeamsOverview();
+  renderRules();
   renderAdminAccounts();
   renderAdminVisitorPassword();
   renderTeams();
@@ -396,6 +444,43 @@ function renderView() {
     if (view === "login") visible = !user; // hide Sign In when logged in
     button.classList.toggle("is-hidden", !visible);
   });
+}
+
+// ─── Rules rendering ─────────────────────────────────────────────────────────
+
+function simpleMarkdown(text) {
+  // Convert simple markdown (## headings and - bullets) to HTML
+  const lines = text.split("\n");
+  let html = "";
+  let inList = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("## ")) {
+      if (inList) { html += "</ul>"; inList = false; }
+      html += `<h3>${escapeText(trimmed.slice(3))}</h3>`;
+    } else if (trimmed.startsWith("- ")) {
+      if (!inList) { html += "<ul class=\"rules-list\">"; inList = true; }
+      html += `<li>${escapeText(trimmed.slice(2))}</li>`;
+    } else if (trimmed === "") {
+      if (inList) { html += "</ul>"; inList = false; }
+    } else {
+      if (inList) { html += "</ul>"; inList = false; }
+      html += `<p>${escapeText(trimmed)}</p>`;
+    }
+  }
+  if (inList) html += "</ul>";
+  return html;
+}
+
+function renderRules() {
+  // Render rules content from state
+  if (elements.rulesContent) {
+    elements.rulesContent.innerHTML = simpleMarkdown(state.rulesText || "");
+  }
+  // Populate the editor textarea (only when editor view is active and textarea is empty or stale)
+  if (elements.rulesEditor && currentView === "editor") {
+    elements.rulesEditor.value = state.rulesText || "";
+  }
 }
 
 function renderAuthStatus() {

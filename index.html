@@ -153,74 +153,7 @@
               <h2>Kent Kup Rules</h2>
             </div>
           </div>
-          <div class="rules-grid">
-            <article class="list-card rules-card">
-              <p class="section-tag">The Field</p>
-              <h3>Teams &amp; Lineup</h3>
-              <ul class="rules-list">
-                <li>Each team fields <strong>5 players</strong> at a time (4 outfield + 1 goalkeeper).</li>
-                <li>A minimum of <strong>4 players</strong> is required to start a game — no forfeits for being one short.</li>
-                <li>Substitutions are unlimited and can happen at any stoppage.</li>
-                <li>Every registered player must play at least <strong>half the game</strong>.</li>
-              </ul>
-            </article>
-
-            <article class="list-card rules-card">
-              <p class="section-tag">Game Clock</p>
-              <h3>Match Format</h3>
-              <ul class="rules-list">
-                <li>Matches are <strong>two 10-minute halves</strong> with a 2-minute halftime break.</li>
-                <li>Clock runs continuously — stoppages do not pause the clock.</li>
-                <li>No overtime in the regular season. Tied games stay tied.</li>
-                <li>Tournament finals use a <strong>sudden-death penalty shootout</strong> to decide a winner.</li>
-              </ul>
-            </article>
-
-            <article class="list-card rules-card">
-              <p class="section-tag">Scoring</p>
-              <h3>Points &amp; Standings</h3>
-              <ul class="rules-list">
-                <li><strong>Win</strong> = 3 points &nbsp;·&nbsp; <strong>Draw</strong> = 1 point &nbsp;·&nbsp; <strong>Loss</strong> = 0 points</li>
-                <li>Standings tiebreaker order: Points → Goal Difference → Goals Scored → Head-to-Head.</li>
-                <li>Goals scored by the opposing team count against your goals-against total.</li>
-                <li>Own goals are credited to the opposing team.</li>
-              </ul>
-            </article>
-
-            <article class="list-card rules-card">
-              <p class="section-tag">Play</p>
-              <h3>Gameplay Rules</h3>
-              <ul class="rules-list">
-                <li>No sliding tackles. Standing tackles and shoulder-to-shoulder challenges are allowed.</li>
-                <li>Goalkeepers cannot pick up a back-pass played with a foot.</li>
-                <li>Kick-ins replace throw-ins on all sideline restarts.</li>
-                <li>Free kicks are <strong>indirect</strong> — the ball must touch another player before a goal can be scored.</li>
-                <li>No offside rule is in effect.</li>
-              </ul>
-            </article>
-
-            <article class="list-card rules-card">
-              <p class="section-tag">Conduct</p>
-              <h3>Fair Play</h3>
-              <ul class="rules-list">
-                <li>All players are expected to show respect toward opponents, teammates, and supervisors at all times.</li>
-                <li>Arguing with a call results in a free kick for the opposing team.</li>
-                <li>Deliberate handball in open play results in an indirect free kick.</li>
-                <li>A handball on the goal line results in a <strong>penalty kick</strong>.</li>
-                <li>Serious unsporting conduct can result in removal from the current game.</li>
-              </ul>
-            </article>
-
-            <article class="list-card rules-card">
-              <p class="section-tag">Awards</p>
-              <h3>Weekly Honors</h3>
-              <ul class="rules-list">
-                <li>An <strong>MVP</strong> and <strong>Best Goalie</strong> are selected by the supervisor after each game.</li>
-                <li>Season-end trophies are awarded for: Most Goals, Most Assists, Most MVP Awards, and Best Goalie.</li>
-                <li>A player can win multiple awards in a single game if performance warrants it.</li>
-              </ul>
-            </article>
-          </div>
+          <div id="rulesContent" class="rules-content"></div>
         </section>
       </section>
 
@@ -456,6 +389,18 @@
           </div>
           <div id="statsEditor" class="stats-editor empty-state"></div>
         </section>
+
+        <section class="panel span-12">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Content</p>
+              <h2>Edit Rules</h2>
+            </div>
+          </div>
+          <p class="meta-line" style="margin-bottom:.75rem;">Use <strong>## Heading</strong> for sections, <strong>- item</strong> for bullet points.</p>
+          <textarea id="rulesEditor" class="rules-editor-textarea" rows="18" placeholder="Enter league rules..."></textarea>
+          <button type="button" id="saveRulesBtn" class="primary-button" style="margin-top:.75rem;">Save Rules</button>
+        </section>
       </section>
     </main>
   </div>
@@ -493,6 +438,6 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
