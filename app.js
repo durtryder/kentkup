@@ -365,8 +365,9 @@ function normalizeTeams(teams) {
       : []
   }));
 
-  applyManualStatsToTeam(normalizedTeams, "KDB", KDB_MANUAL_PLAYER_STATS);
-  applyManualStatsToTeam(normalizedTeams, "Corner FC", CORNER_FC_MANUAL_PLAYER_STATS);
+  // NOTE: applyManualStatsToTeam is intentionally NOT called here.
+  // It was used once to seed initial historical stats into Firestore on first load.
+  // Calling it on every normalizeState would overwrite any stats saved by admins.
 
   return normalizedTeams;
 }
@@ -855,7 +856,7 @@ function renderTeams() {
             <select aria-label="Transfer ${player.name}">
               ${buildTransferOptions(team.id)}
             </select>
-            <button type="button" class="ghost-button change-stats-button">Change Stats</button>
+            <button type="button" class="ghost-button change-stats-button">Pre-season Stats</button>
             <button type="button" class="ghost-button transfer-button">Transfer</button>
             <button type="button" class="ghost-button remove-button">Remove</button>
           </div>
@@ -913,6 +914,7 @@ function renderTeams() {
           };
 
           editorPanel.innerHTML = `
+            <p class="meta-line" style="margin-bottom:.5rem;">Pre-season stats — added to game-recorded stats to calculate all-time totals.</p>
             <div class="manual-stat-picker">
               ${statOptions.map((option) => `
                 <button
@@ -930,7 +932,7 @@ function renderTeams() {
                 <input type="number" min="0" value="${Number(draftStats[selectedStat.key] || 0)}" class="manual-stat-value-input">
               </label>
               <div class="player-actions">
-                <button type="button" class="save-manual-stat-button">Save All Stats</button>
+                <button type="button" class="save-manual-stat-button">Save Pre-season Stats</button>
                 <button type="button" class="ghost-button cancel-manual-stat-button">Close</button>
               </div>
             </div>
