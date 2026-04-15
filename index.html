@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kent Kup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ── Gate / Landing page (shown when no access) ── -->
+  <div id="gateView" class="gate-view is-hidden">
+    <div class="gate-card">
+      <img class="gate-logo" src="assets/KentKupLogo.png" alt="Kent Kup logo">
+      <div class="gate-brand">
+        <p class="eyebrow">Middle School Recess League</p>
+        <p class="brand-name">Kent Kup</p>
+      </div>
+      <p id="gateError" class="gate-error is-hidden"></p>
+      <form id="visitorForm" class="gate-form">
+        <label class="gate-label">
+          League password
+          <input type="password" name="visitorPassword" id="visitorPasswordInput"
+                 placeholder="Enter password to view" autocomplete="off" required>
+        </label>
+        <button type="submit" class="gate-enter-button">Enter</button>
+      </form>
+      <p class="gate-footer-copy">
+        Editor or administrator?
+        <button type="button" class="link-button" id="gateLoginLink">Sign in here →</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Loading screen (shown while Firestore data loads) ── -->
+  <div id="loadingView" class="gate-view">
+    <div class="gate-card" style="align-items:center; gap:1.2rem;">
+      <img class="gate-logo" src="assets/KentKupLogo.png" alt="Kent Kup logo">
+      <p class="meta-line">Loading…</p>
+    </div>
+  </div>
+
+  <!-- ── Main app (shown when visitor password entered OR logged in) ── -->
+  <div class="page-shell is-hidden" id="pageShell">
+    <header class="hero">
+      <button type="button" class="brand-lockup brand-home-button" id="brandHomeButton" aria-label="Go to Home page">
+        <img class="brand-logo" src="assets/KentKupLogo.png" alt="Kent Kup logo">
+        <div class="brand-text">
+          <p class="eyebrow">Middle School Recess League</p>
+          <p class="brand-name">Kent Kup</p>
+        </div>
+      </button>
+    </header>
+
+    <div class="top-bar">
+      <nav class="top-nav" aria-label="App navigation">
+        <button type="button" class="nav-button active" data-view="home">Home</button>
+        <button type="button" class="nav-button" data-view="rules">Rules</button>
+        <button type="button" class="nav-button" data-view="teams">Teams</button>
+        <button type="button" class="nav-button" data-view="editor">Editor</button>
+        <button type="button" class="nav-button" data-view="admin">Admin</button>
+        <button type="button" class="nav-button" data-view="login">Sign In</button>
+      </nav>
+      <div id="authStatus" class="auth-status"></div>
+    </div>
+
+    <main>
+      <!-- Home -->
+      <section id="homeView" class="dashboard page-view">
+        <section class="panel span-7">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">This Week</p>
+              <h2>This Week's Tournament Schedule</h2>
+            </div>
+          </div>
+          <div id="homeThisWeek" class="card-list"></div>
+        </section>
+
+        <section class="panel span-5">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Results</p>
+              <h2>Previous Tournament Results</h2>
+            </div>
+          </div>
+          <div id="homeRecentGames" class="card-list"></div>
+        </section>
+
+        <section class="panel span-7">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Next Up</p>
+              <h2>Next Week's Tournament Schedule</h2>
+            </div>
+          </div>
+          <div id="homeNextWeek" class="card-list"></div>
+        </section>
+
+        <section class="panel span-5">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Leaders</p>
+              <h2>All-Time Leaders</h2>
+            </div>
+          </div>
+          <div id="homeAllTimeStats" class="card-list"></div>
+        </section>
+
+        <section class="panel span-12">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Standings</p>
+              <h2>League Standings</h2>
+            </div>
+          </div>
+          <div id="homeStandings"></div>
+        </section>
+      </section>
+
+      <!-- Teams -->
+      <section id="teamsView" class="dashboard page-view is-hidden">
+        <section class="panel span-12">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Player Leaderboard</p>
+              <h2>Season Stats Leaders</h2>
+            </div>
+          </div>
+          <div id="leaderboardTable"></div>
+        </section>
+
+        <section class="panel span-12">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">League Teams</p>
+              <h2>Teams, Rosters, and Player Stats</h2>
+            </div>
+          </div>
+          <div id="teamsOverviewGrid" class="teams-grid"></div>
+        </section>
+      </section>
+
+      <!-- Rules -->
+      <section id="rulesView" class="dashboard page-view is-hidden">
+        <section class="panel span-12">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">League Rules</p>
+              <h2>Kent Kup Rules</h2>
+            </div>
+          </div>
+          <div class="rules-grid">
+            <article class="list-card rules-card">
+              <p class="section-tag">The Field</p>
+              <h3>Teams &amp; Lineup</h3>
+              <ul class="rules-list">
+                <li>Each team fields <strong>5 players</strong> at a time (4 outfield + 1 goalkeeper).</li>
+                <li>A minimum of <strong>4 players</strong> is required to start a game — no forfeits for being one short.</li>
+                <li>Substitutions are unlimited and can happen at any stoppage.</li>
+                <li>Every registered player must play at least <strong>half the game</strong>.</li>
+              </ul>
+            </article>
+
+            <article class="list-card rules-card">
+              <p class="section-tag">Game Clock</p>
+              <h3>Match Format</h3>
+              <ul class="rules-list">
+                <li>Matches are <strong>two 10-minute halves</strong> with a 2-minute halftime break.</li>
+                <li>Clock runs continuously — stoppages do not pause the clock.</li>
+                <li>No overtime in the regular season. Tied games stay tied.</li>
+                <li>Tournament finals use a <strong>sudden-death penalty shootout</strong> to decide a winner.</li>
+              </ul>
+            </article>
+
+            <article class="list-card rules-card">
+              <p class="section-tag">Scoring</p>
+              <h3>Points &amp; Standings</h3>
+              <ul class="rules-list">
+                <li><strong>Win</strong> = 3 points &nbsp;·&nbsp; <strong>Draw</strong> = 1 point &nbsp;·&nbsp; <strong>Loss</strong> = 0 points</li>
+                <li>Standings tiebreaker order: Points → Goal Difference → Goals Scored → Head-to-Head.</li>
+                <li>Goals scored by the opposing team count against your goals-against total.</li>
+                <li>Own goals are credited to the opposing team.</li>
+              </ul>
+            </article>
+
+            <article class="list-card rules-card">
+              <p class="section-tag">Play</p>
+              <h3>Gameplay Rules</h3>
+              <ul class="rules-list">
+                <li>No sliding tackles. Standing tackles and shoulder-to-shoulder challenges are allowed.</li>
+                <li>Goalkeepers cannot pick up a back-pass played with a foot.</li>
+                <li>Kick-ins replace throw-ins on all sideline restarts.</li>
+                <li>Free kicks are <strong>indirect</strong> — the ball must touch another player before a goal can be scored.</li>
+                <li>No offside rule is in effect.</li>
+              </ul>
+            </article>
+
+            <article class="list-card rules-card">
+              <p class="section-tag">Conduct</p>
+              <h3>Fair Play</h3>
+              <ul class="rules-list">
+                <li>All players are expected to show respect toward opponents, teammates, and supervisors at all times.</li>
+                <li>Arguing with a call results in a free kick for the opposing team.</li>
+                <li>Deliberate handball in open play results in an indirect free kick.</li>
+                <li>A handball on the goal line results in a <strong>penalty kick</strong>.</li>
+                <li>Serious unsporting conduct can result in removal from the current game.</li>
+              </ul>
+            </article>
+
+            <article class="list-card rules-card">
+              <p class="section-tag">Awards</p>
+              <h3>Weekly Honors</h3>
+              <ul class="rules-list">
+                <li>An <strong>MVP</strong> and <strong>Best Goalie</strong> are selected by the supervisor after each game.</li>
+                <li>Season-end trophies are awarded for: Most Goals, Most Assists, Most MVP Awards, and Best Goalie.</li>
+                <li>A player can win multiple awards in a single game if performance warrants it.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+      </section>
+
+      <!-- Sign In (editors / admins only) -->
+      <section id="loginView" class="dashboard page-view is-hidden">
+        <section class="panel span-12 auth-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Editor Access</p>
+              <h2>Sign In to Your Account</h2>
+            </div>
+          </div>
+          <p id="authNotice" class="auth-notice is-hidden"></p>
+          <div class="auth-grid">
+            <form id="loginForm" class="list-card stack-form auth-card">
+              <div>
+                <p class="section-tag">Sign In</p>
+                <h3>Editor or Administrator</h3>
+              </div>
+              <label>
+                Email
+                <input type="email" name="email" autocomplete="email" required>
+              </label>
+              <label>
+                Password
+                <input type="password" name="password" autocomplete="current-password" required>
+              </label>
+              <button type="submit">Sign In</button>
+            </form>
+
+            <!-- First-time admin setup — shown only when primary admin has no account yet -->
+            <form id="adminSetupForm" class="list-card stack-form auth-card is-hidden">
+              <div>
+                <p class="section-tag">First-Time Setup</p>
+                <h3>Create Admin Account</h3>
+              </div>
+              <p class="meta-line">No administrator account exists yet. Set one up to get started.</p>
+              <label>
+                Display name
+                <input type="text" name="displayName" autocomplete="name" required>
+              </label>
+              <label>
+                Password
+                <input type="password" name="password" minlength="8" autocomplete="new-password" required>
+              </label>
+              <label>
+                Confirm password
+                <input type="password" name="confirmPassword" minlength="8" autocomplete="new-password" required>
+              </label>
+              <button type="submit">Create Admin Account</button>
+            </form>
+          </div>
+        </section>
+      </section>
+
+      <!-- Admin -->
+      <section id="adminView" class="dashboard page-view is-hidden">
+
+        <!-- Visitor Password Management -->
+        <section class="panel span-5">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Visitor Access</p>
+              <h2>League Password</h2>
+            </div>
+          </div>
+          <p class="meta-line">This password is shared with anyone who should be able to view the app. Changing it immediately locks out visitors who haven't re-entered the new password.</p>
+          <div id="visitorPasswordPanel" class="card-list" style="margin-top:1rem;"></div>
+        </section>
+
+        <!-- Create Editor Account -->
+        <section class="panel span-7">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Add Account</p>
+              <h2>Create Editor Account</h2>
+            </div>
+          </div>
+          <form id="createAccountForm" class="stack-form">
+            <div class="field-row">
+              <label>
+                Display name
+                <input type="text" name="displayName" autocomplete="off" required>
+              </label>
+              <label>
+                Email
+                <input type="email" name="email" autocomplete="off" required>
+              </label>
+            </div>
+            <div class="field-row">
+              <label>
+                Initial password
+                <input type="password" name="password" minlength="8" autocomplete="new-password" required>
+              </label>
+              <label>
+                Access level
+                <select name="role">
+                  <option value="member">Member (view only)</option>
+                  <option value="editor" selected>Editor</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </label>
+            </div>
+            <button type="submit">Create Account</button>
+          </form>
+        </section>
+
+        <!-- Manage Existing Accounts -->
+        <section class="panel span-12">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Manage Accounts</p>
+              <h2>All Accounts</h2>
+            </div>
+          </div>
+          <p class="meta-line">Review registered users, update access levels, edit account details, and delete accounts.</p>
+          <div id="adminAccountsList" class="card-list"></div>
+        </section>
+      </section>
+
+      <!-- Editor -->
+      <section id="editorView" class="dashboard page-view is-hidden">
+        <section class="panel span-12">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">League Setup</p>
+              <h2>Teams and Rosters</h2>
+            </div>
+            <form id="teamForm" class="inline-form">
+              <input type="text" name="teamName" placeholder="Add a new team" required>
+              <button type="submit">Create Team</button>
+            </form>
+          </div>
+          <div id="teamsGrid" class="teams-grid"></div>
+        </section>
+
+        <section class="panel span-5">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Weekly Play</p>
+              <h2>Tournaments</h2>
+            </div>
+          </div>
+          <form id="tournamentForm" class="stack-form">
+            <label>
+              Tournament name
+              <input type="text" name="name" placeholder="Week 3 Showdown" required>
+            </label>
+            <label>
+              Week label
+              <input type="text" name="weekLabel" placeholder="Week of April 8" required>
+            </label>
+            <div class="field-row">
+              <label>
+                Start date
+                <input type="date" name="startDate" required>
+              </label>
+              <label>
+                End date
+                <input type="date" name="endDate" required>
+              </label>
+            </div>
+            <button type="submit">Create Tournament</button>
+          </form>
+          <div id="tournamentsList" class="card-list"></div>
+        </section>
+
+        <section class="panel span-7">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Matchday</p>
+              <h2>Schedule Games</h2>
+            </div>
+          </div>
+          <form id="gameForm" class="stack-form">
+            <label>
+              Tournament week
+              <select name="tournamentId" id="gameTournamentSelect" required></select>
+            </label>
+            <div class="field-row">
+              <label>
+                Team 1
+                <select name="teamOneId" id="homeTeamSelect" required></select>
+              </label>
+              <label>
+                Team 2
+                <select name="teamTwoId" id="awayTeamSelect" required></select>
+              </label>
+            </div>
+            <div class="field-row">
+              <label>
+                Date
+                <input type="date" name="date" required>
+              </label>
+              <label>
+                Time
+                <input type="time" name="time" required>
+              </label>
+            </div>
+            <div class="field-row">
+              <label>
+                Location
+                <input type="text" name="location" placeholder="North Field" required>
+              </label>
+              <label>
+                Status
+                <select name="status">
+                  <option value="Scheduled">Scheduled</option>
+                  <option value="Live">Live</option>
+                  <option value="Final">Final</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              Notes
+              <textarea name="notes" rows="3" placeholder="Special rules, fan notes, weather, etc."></textarea>
+            </label>
+            <button type="submit">Add Game</button>
+          </form>
+          <div id="scheduleBoard" class="schedule-board"></div>
+        </section>
+
+        <section class="panel span-12">
+          <div class="panel-heading">
+            <div>
+              <p class="section-tag">Stats Desk</p>
+              <h2>Game Stats Editor</h2>
+            </div>
+            <label class="filter-label">
+              Edit game
+              <select id="statsGameSelect"></select>
+            </label>
+          </div>
+          <div id="statsEditor" class="stats-editor empty-state"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <template id="teamCardTemplate">
+    <article class="team-card">
+      <div class="team-card-header">
+        <div>
+          <h3 class="team-name"></h3>
+          <p class="team-meta"></p>
+        </div>
+        <button class="ghost-button delete-team-button" type="button">Delete Team</button>
+      </div>
+      <form class="player-form inline-form">
+        <input type="text" name="playerName" placeholder="Player name" required>
+        <input type="text" name="playerPosition" placeholder="Position">
+        <button type="submit">Add Player</button>
+      </form>
+      <div class="roster-list"></div>
+    </article>
+  </template>
+
+  <template id="teamOverviewTemplate">
+    <article class="team-card team-overview-card">
+      <div class="team-card-header">
+        <div>
+          <h3 class="team-name"></h3>
+          <p class="team-meta"></p>
+        </div>
+        <span class="pill team-awards"></span>
+      </div>
+      <div class="roster-list"></div>
+    </article>
+  </template>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
