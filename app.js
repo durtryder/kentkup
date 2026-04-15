@@ -2,18 +2,25 @@ const AUTH_SESSION_KEY = "kent-kup-auth-session-v1";
 const AUTH_VISITOR_KEY = "kent-kup-visitor-v1";
 
 // ─── Firebase ────────────────────────────────────────────────────────────────
-firebase.initializeApp({
-  apiKey: "AIzaSyBs3_E4ljrI3NL3pAOlasTkk6o3ky_BgX0",
-  authDomain: "kent-kup.firebaseapp.com",
-  projectId: "kent-kup",
-  storageBucket: "kent-kup.firebasestorage.app",
-  messagingSenderId: "18237066198",
-  appId: "1:18237066198:web:d96dc60c1b02d52123b277",
-  measurementId: "G-ZYZ767XBCE"
-});
-const db = firebase.firestore();
-const STATE_DOC = db.collection("config").doc("appState");
-const ACCOUNTS_DOC = db.collection("config").doc("accounts");
+var db, STATE_DOC, ACCOUNTS_DOC, firebaseReady = false;
+try {
+  firebase.initializeApp({
+    apiKey: "AIzaSyBs3_E4ljrI3NL3pAOlasTkk6o3ky_BgX0",
+    authDomain: "kent-kup.firebaseapp.com",
+    projectId: "kent-kup",
+    storageBucket: "kent-kup.firebasestorage.app",
+    messagingSenderId: "18237066198",
+    appId: "1:18237066198:web:d96dc60c1b02d52123b277",
+    measurementId: "G-ZYZ767XBCE"
+  });
+  db = firebase.firestore();
+  STATE_DOC = db.collection("config").doc("appState");
+  ACCOUNTS_DOC = db.collection("config").doc("accounts");
+  firebaseReady = true;
+  console.log("Firebase initialized successfully");
+} catch (err) {
+  console.error("Firebase init failed:", err);
+}
 const PRIMARY_ADMIN_EMAIL = "rywmorgan@gmail.com";
 const DEFAULT_VISITOR_PASSWORD = "KentKup2026";
 const DEFAULT_MANUAL_GAMES = 15;
@@ -154,6 +161,14 @@ async function initApp() {
   authState.session = loadLocalSession();
   authState.visitorSession = loadLocalVisitorSession();
 
+  // If Firebase failed to initialize, skip Firestore and render with defaults
+  if (!firebaseReady) {
+    console.warn("Firebase not available — rendering with default state");
+    showLoading(false);
+    render();
+    return;
+  }
+
   showLoading(true);
 
   let stateReady = false;
@@ -165,6 +180,16 @@ async function initApp() {
       render();
     }
   }
+
+  // Safety timeout — never stay stuck on "Loading…" for more than 8 seconds
+  setTimeout(() => {
+    if (!stateReady || !accountsReady) {
+      console.warn("Firestore timeout — rendering with defaults");
+      stateReady = true;
+      accountsReady = true;
+      tryRender();
+    }
+  }, 8000);
 
   // Real-time listener for app state — fires immediately with current data,
   // then again whenever an editor/admin saves a change
@@ -228,6 +253,7 @@ function loadLocalVisitorSession() {
 }
 
 function saveState() {
+  if (!firebaseReady || !STATE_DOC) return;
   STATE_DOC.set(state).catch((err) => console.error("Failed to save state:", err));
 }
 
@@ -236,6 +262,7 @@ function saveAuthState() {
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(authState.session));
   localStorage.setItem(AUTH_VISITOR_KEY, JSON.stringify(authState.visitorSession));
   // Accounts live in Firestore so all devices share the same user list
+  if (!firebaseReady || !ACCOUNTS_DOC) return;
   ACCOUNTS_DOC.set({ accounts: authState.accounts })
     .catch((err) => console.error("Failed to save accounts:", err));
 }
