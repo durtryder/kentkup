@@ -1578,22 +1578,49 @@ function handleSaveAccount(accountId, form, isPrimaryAdmin) {
   render();
 }
 
-function handleDeleteAccount(accountId) {
+async function handleDeleteAccount(accountId) {
+  console.log("[deleteAccount] called with id:", accountId);
+
   const currentUser = getCurrentUser();
-  if (!currentUser || !isAdmin(currentUser)) return;
+  console.log("[deleteAccount] currentUser:", currentUser?.email, "isAdmin:", isAdmin(currentUser));
+  if (!currentUser || !isAdmin(currentUser)) {
+    console.warn("[deleteAccount] BLOCKED — not admin");
+    return;
+  }
 
   const account = authState.accounts.find((entry) => entry.id === accountId);
-  if (!account || account.email === PRIMARY_ADMIN_EMAIL) return;
+  console.log("[deleteAccount] account found:", account?.email, "isPrimary:", account?.email === PRIMARY_ADMIN_EMAIL);
+  if (!account || account.email === PRIMARY_ADMIN_EMAIL) {
+    console.warn("[deleteAccount] BLOCKED — account not found or is primary admin");
+    return;
+  }
 
-  if (!confirm(`Delete account for ${account.displayName} (${account.email})? This cannot be undone.`)) return;
+  if (!confirm(`Delete account for ${account.displayName} (${account.email})? This cannot be undone.`)) {
+    console.log("[deleteAccount] cancelled by user");
+    return;
+  }
 
   authState.accounts = authState.accounts.filter((entry) => entry.id !== accountId);
   if (authState.session.userId === accountId) {
     authState.session = { userId: "" };
     currentView = "login";
   }
-  saveAuthState();
+
+  // Save locally first so the UI updates immediately
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(authState.session));
+  localStorage.setItem(AUTH_VISITOR_KEY, JSON.stringify(authState.visitorSession));
   render();
+
+  // Then persist to Firestore
+  if (firebaseReady && ACCOUNTS_DOC) {
+    try {
+      await ACCOUNTS_DOC.set({ accounts: authState.accounts });
+      console.log("[deleteAccount] Firestore save succeeded");
+    } catch (err) {
+      console.error("[deleteAccount] Firestore save FAILED:", err);
+      alert("The account was removed locally but could not be saved to the server. Check Firestore rules.");
+    }
+  }
 }
 
 function handleCreateTournament(event) {
