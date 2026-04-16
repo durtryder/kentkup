@@ -119,7 +119,7 @@ let authNotice = "";
 let pendingProtectedView = "";
 let manualStatEditor = {
   playerId: "",
-  statKey: "games",
+  statKey: "goals",
   draft: null
 };
 
@@ -876,7 +876,7 @@ function renderTeams() {
             <select aria-label="Transfer ${player.name}">
               ${buildTransferOptions(team.id)}
             </select>
-            <button type="button" class="ghost-button change-stats-button">Pre-season Stats</button>
+            <button type="button" class="ghost-button change-stats-button">Change Stats</button>
             <button type="button" class="ghost-button transfer-button">Transfer</button>
             <button type="button" class="ghost-button remove-button">Remove</button>
           </div>
@@ -909,7 +909,7 @@ function renderTeams() {
         row.querySelector(".remove-button").addEventListener("click", () => {
           team.players = team.players.filter((entry) => entry.id !== player.id);
           if (manualStatEditor.playerId === player.id) {
-            manualStatEditor = { playerId: "", statKey: "games", draft: null };
+            manualStatEditor = { playerId: "", statKey: "goals", draft: null };
           }
           persistAndRender();
         });
@@ -920,7 +920,6 @@ function renderTeams() {
           const editorPanel = document.createElement("div");
           editorPanel.className = "manual-stat-editor";
           const statOptions = [
-            { key: "games", label: "Games Played" },
             { key: "goals", label: "Goals" },
             { key: "assists", label: "Assists" },
             { key: "awards", label: "Awards Won" }
@@ -934,7 +933,7 @@ function renderTeams() {
           };
 
           editorPanel.innerHTML = `
-            <p class="meta-line" style="margin-bottom:.5rem;">Pre-season stats — added to game-recorded stats to calculate all-time totals.</p>
+            <p class="meta-line" style="margin-bottom:.5rem;">These stats are added to game-recorded stats to calculate all-time totals.</p>
             <div class="manual-stat-picker">
               ${statOptions.map((option) => `
                 <button
@@ -952,7 +951,7 @@ function renderTeams() {
                 <input type="number" min="0" value="${Number(draftStats[selectedStat.key] || 0)}" class="manual-stat-value-input">
               </label>
               <div class="player-actions">
-                <button type="button" class="save-manual-stat-button">Save Pre-season Stats</button>
+                <button type="button" class="save-manual-stat-button">Save Stats</button>
                 <button type="button" class="ghost-button cancel-manual-stat-button">Close</button>
               </div>
             </div>
@@ -992,12 +991,12 @@ function renderTeams() {
               assists: Number(finalDraft.assists || 0),
               awards: Number(finalDraft.awards || 0)
             };
-            manualStatEditor = { playerId: "", statKey: "games", draft: null };
+            manualStatEditor = { playerId: "", statKey: "goals", draft: null };
             persistAndRender();
           });
 
           editorPanel.querySelector(".cancel-manual-stat-button").addEventListener("click", () => {
-            manualStatEditor = { playerId: "", statKey: "games", draft: null };
+            manualStatEditor = { playerId: "", statKey: "goals", draft: null };
             renderTeams();
           });
 
