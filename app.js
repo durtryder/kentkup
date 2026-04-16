@@ -192,6 +192,18 @@ function bindEvents() {
   elements.gameForm.addEventListener("submit", handleCreateGame);
   elements.statsGameSelect.addEventListener("change", renderStatsEditor);
   elements.saveRulesBtn.addEventListener("click", handleSaveRules);
+
+  if (elements.adminAccountsList) {
+    elements.adminAccountsList.addEventListener("click", (event) => {
+      const btn = event.target.closest(".delete-account-button");
+      if (!btn || btn.disabled) return;
+      if (!elements.adminAccountsList.contains(btn)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const accountId = btn.dataset.accountId;
+      if (accountId) handleDeleteAccount(accountId);
+    });
+  }
 }
 
 function handleSaveRules() {
@@ -665,17 +677,13 @@ function renderAdminAccounts() {
           </div>
         </form>
         <div class="player-actions" style="margin-top:.5rem;">
-          <button type="button" class="ghost-button delete-account-button" ${isPrimaryAdmin ? "disabled" : ""}>Delete Account</button>
+          <button type="button" class="ghost-button delete-account-button" data-account-id="${escapeAttribute(account.id)}" ${isPrimaryAdmin ? "disabled" : ""}>Delete Account</button>
         </div>
       `;
 
       card.querySelector(".admin-account-form").addEventListener("submit", (event) => {
         event.preventDefault();
         handleSaveAccount(account.id, event.currentTarget, isPrimaryAdmin);
-      });
-
-      card.querySelector(".delete-account-button").addEventListener("click", () => {
-        handleDeleteAccount(account.id);
       });
 
       elements.adminAccountsList.appendChild(card);
