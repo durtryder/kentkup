@@ -2236,7 +2236,6 @@ function renderLeaderboard() {
         <td><span class="leaderboard-rank${rankClass}">${rank}</span></td>
         <td><strong>${escapeText(player.name)}</strong></td>
         <td>${escapeText(player.teamName || "—")}</td>
-        <td>${player.games}</td>
         <td>${player.goals}</td>
         <td>${player.assists}</td>
         <td>${player.goals + player.assists}</td>
@@ -2252,7 +2251,6 @@ function renderLeaderboard() {
           <th>#</th>
           <th>Player</th>
           <th>Team</th>
-          <th title="Games Played">GP</th>
           <th title="Goals">G</th>
           <th title="Assists">A</th>
           <th title="Goals + Assists">G+A</th>
