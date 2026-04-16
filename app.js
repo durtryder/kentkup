@@ -1589,45 +1589,49 @@ async function handleDeleteAccount(accountId) {
   console.log("[deleteAccount] called with id:", accountId);
 
   const currentUser = getCurrentUser();
-  console.log("[deleteAccount] currentUser:", currentUser?.email, "isAdmin:", isAdmin(currentUser));
   if (!currentUser || !isAdmin(currentUser)) {
-    console.warn("[deleteAccount] BLOCKED — not admin");
+    alert("Only an admin can delete accounts.");
     return;
   }
 
   const account = authState.accounts.find((entry) => entry.id === accountId);
-  console.log("[deleteAccount] account found:", account?.email, "isPrimary:", account?.email === PRIMARY_ADMIN_EMAIL);
-  if (!account || account.email === PRIMARY_ADMIN_EMAIL) {
-    console.warn("[deleteAccount] BLOCKED — account not found or is primary admin");
+  if (!account) {
+    alert("Account not found.");
+    return;
+  }
+  if (account.email === PRIMARY_ADMIN_EMAIL) {
+    alert("The primary admin account cannot be deleted.");
     return;
   }
 
   if (!confirm(`Delete account for ${account.displayName} (${account.email})? This cannot be undone.`)) {
-    console.log("[deleteAccount] cancelled by user");
     return;
   }
 
-  authState.accounts = authState.accounts.filter((entry) => entry.id !== accountId);
+  const nextAccounts = authState.accounts.filter((entry) => entry.id !== accountId);
+
+  // Persist to Firestore FIRST so we catch permission errors before the UI flickers.
+  if (firebaseReady && ACCOUNTS_DOC) {
+    try {
+      await ACCOUNTS_DOC.set({ accounts: nextAccounts });
+      console.log("[deleteAccount] Firestore save succeeded");
+    } catch (err) {
+      console.error("[deleteAccount] Firestore save FAILED:", err);
+      alert(`Could not delete the account: ${err?.message || err}\n\nThis usually means Firestore security rules are blocking writes. Check Firebase Console → Firestore → Rules.`);
+      return;
+    }
+  }
+
+  // Now update local state. The snapshot listener will also update it, but this keeps the UI snappy.
+  authState.accounts = nextAccounts;
   if (authState.session.userId === accountId) {
     authState.session = { userId: "" };
     currentView = "login";
   }
-
-  // Save locally first so the UI updates immediately
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(authState.session));
   localStorage.setItem(AUTH_VISITOR_KEY, JSON.stringify(authState.visitorSession));
   render();
 
-  // Then persist to Firestore
-  if (firebaseReady && ACCOUNTS_DOC) {
-    try {
-      await ACCOUNTS_DOC.set({ accounts: authState.accounts });
-      console.log("[deleteAccount] Firestore save succeeded");
-    } catch (err) {
-      console.error("[deleteAccount] Firestore save FAILED:", err);
-      alert("The account was removed locally but could not be saved to the server. Check Firestore rules.");
-    }
-  }
 }
 
 function handleCreateTournament(event) {
