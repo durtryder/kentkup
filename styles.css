@@ -448,6 +448,21 @@ label {
   align-items: flex-start;
 }
 
+.team-totals-row {
+  background: var(--surface-raised, rgba(22, 35, 31, 0.04));
+  border-radius: 0.4rem;
+  padding: 0.45rem 0.6rem;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+.team-totals-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted, #6b7c74);
+}
+
 .editor-player-row {
   display: flex;
   justify-content: space-between;

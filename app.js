@@ -538,27 +538,46 @@ function renderTeamsOverview() {
 
   elements.teamsOverviewGrid.innerHTML = "";
 
+  // Build a lookup of all-time stats by player id (includes game stats + pre-season)
+  const allTimeStats = getAllTimePlayerStats();
+  const statById = new Map(allTimeStats.map((s) => [s.id, s]));
+
   state.teams.forEach((team) => {
     const fragment = template.content.cloneNode(true);
     fragment.querySelector(".team-name").textContent = team.name;
     fragment.querySelector(".team-meta").textContent = `${team.players.length} players`;
 
-    const totalAwards = team.players.reduce((sum, player) => {
-      return sum + Number(player.manualStats?.awards || 0);
-    }, 0);
-    fragment.querySelector(".team-awards").textContent = `${totalAwards} awards`;
+    // Compute team totals from all-time stats
+    let teamGoals = 0;
+    let teamAssists = 0;
+    let teamAwards = 0;
+    team.players.forEach((player) => {
+      const s = statById.get(player.id);
+      teamGoals += s ? s.goals : 0;
+      teamAssists += s ? s.assists : 0;
+      teamAwards += s ? s.awards : 0;
+    });
 
+    fragment.querySelector(".team-awards").textContent = `${teamAwards} awards`;
+
+    // Insert team totals row before the player list
     const rosterList = fragment.querySelector(".roster-list");
+    const totalsRow = document.createElement("div");
+    totalsRow.className = "roster-row team-totals-row";
+    totalsRow.innerHTML = `
+      <span class="team-totals-label">Team totals</span>
+      <div class="player-stat-summary">
+        <span>${teamGoals} G</span>
+        <span>${teamAssists} A</span>
+      </div>
+    `;
+    rosterList.appendChild(totalsRow);
+
     if (!team.players.length) {
       rosterList.innerHTML = `<p class="empty-copy">No players yet.</p>`;
     } else {
       team.players.forEach((player) => {
-        const stats = {
-          goals: Number(player.manualStats?.goals || 0),
-          assists: Number(player.manualStats?.assists || 0),
-          games: Number(player.manualStats?.games || DEFAULT_MANUAL_GAMES),
-          awards: Number(player.manualStats?.awards || 0)
-        };
+        const s = statById.get(player.id) || { goals: 0, assists: 0, awards: 0 };
 
         const row = document.createElement("div");
         row.className = "roster-row player-stat-row";
@@ -568,10 +587,9 @@ function renderTeamsOverview() {
             <p class="meta-line">${player.position || "No position set"}</p>
           </div>
           <div class="player-stat-summary">
-            <span>${stats.games} GP</span>
-            <span>${stats.goals} G</span>
-            <span>${stats.assists} A</span>
-            <span>${stats.awards} Awards</span>
+            <span>${s.goals} G</span>
+            <span>${s.assists} A</span>
+            <span>${s.awards} Awards</span>
           </div>
         `;
         rosterList.appendChild(row);
