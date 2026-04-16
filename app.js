@@ -644,9 +644,11 @@ function renderAdminAccounts() {
           </div>
           <div class="player-actions">
             <button type="submit">Save Account</button>
-            <button type="button" class="ghost-button delete-account-button" ${isPrimaryAdmin ? "disabled" : ""}>Delete Account</button>
           </div>
         </form>
+        <div class="player-actions" style="margin-top:.5rem;">
+          <button type="button" class="ghost-button delete-account-button" ${isPrimaryAdmin ? "disabled" : ""}>Delete Account</button>
+        </div>
       `;
 
       card.querySelector(".admin-account-form").addEventListener("submit", (event) => {
@@ -1560,18 +1562,12 @@ function handleSaveAccount(accountId, form, isPrimaryAdmin) {
 
 function handleDeleteAccount(accountId) {
   const currentUser = getCurrentUser();
-  if (!currentUser || !isAdmin(currentUser)) {
-    authNotice = "Administrator access is required to delete accounts.";
-    render();
-    return;
-  }
+  if (!currentUser || !isAdmin(currentUser)) return;
 
   const account = authState.accounts.find((entry) => entry.id === accountId);
-  if (!account || account.email === PRIMARY_ADMIN_EMAIL) {
-    authNotice = "The primary administrator account cannot be deleted.";
-    render();
-    return;
-  }
+  if (!account || account.email === PRIMARY_ADMIN_EMAIL) return;
+
+  if (!confirm(`Delete account for ${account.displayName} (${account.email})? This cannot be undone.`)) return;
 
   authState.accounts = authState.accounts.filter((entry) => entry.id !== accountId);
   if (authState.session.userId === accountId) {
@@ -1579,7 +1575,6 @@ function handleDeleteAccount(accountId) {
     currentView = "login";
   }
   saveAuthState();
-  authNotice = "Account deleted.";
   render();
 }
 
