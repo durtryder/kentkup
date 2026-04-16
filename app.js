@@ -21,7 +21,7 @@ try {
 } catch (err) {
   console.error("Firebase init failed:", err);
 }
-const PRIMARY_ADMIN_EMAIL = "rywmorgan@gmail.com";
+const PRIMARY_ADMIN_EMAIL = "bmorgan@gmail.com";
 const DEFAULT_VISITOR_PASSWORD = "KentKup2026";
 const DEFAULT_MANUAL_GAMES = 15;
 const KDB_MANUAL_PLAYER_STATS = [
