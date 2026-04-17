@@ -844,7 +844,6 @@ function renderAllTimeStats() {
           <h3>${entry.player?.name || "No leader yet"}</h3>
           <p class="meta-line">${entry.player?.teamName || "Former player"}</p>
         </div>
-        <span class="pill">${entry.player?.games || 0} game${(entry.player?.games || 0) === 1 ? "" : "s"}</span>
       </div>
       <div class="leader-grid">
         <p><strong>${entry.value}</strong><span>${entry.statLabel}</span></p>
