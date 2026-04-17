@@ -24,6 +24,10 @@ try {
 const PRIMARY_ADMIN_EMAIL = "rywmorgan10@gmail.com";
 const DEFAULT_VISITOR_PASSWORD = "KentKup2026";
 const DEFAULT_MANUAL_GAMES = 15;
+const TEAM_LOGOS = {
+  "KDB": "assets/KDB_logo_transparent.png",
+  "Corner FC": "assets/CFC_logo_transparent.png"
+};
 const KDB_MANUAL_PLAYER_STATS = [
   { name: "Parker", goals: 1, assists: 1, awards: 0, games: 15 },
   { name: "Patrick", goals: 5, assists: 1, awards: 1, games: 15 },
@@ -164,7 +168,10 @@ const elements = {
   awayTeamSelect: document.querySelector("#awayTeamSelect"),
   scheduleBoard: document.querySelector("#scheduleBoard"),
   statsGameSelect: document.querySelector("#statsGameSelect"),
-  statsEditor: document.querySelector("#statsEditor")
+  statsEditor: document.querySelector("#statsEditor"),
+  playerCardOverlay: document.querySelector("#playerCardOverlay"),
+  playerEditorSelect: document.querySelector("#playerEditorSelect"),
+  playerEditorForm: document.querySelector("#playerEditorForm")
 };
 
 bindEvents();
@@ -211,6 +218,33 @@ function bindEvents() {
     if (!form) return;
     event.preventDefault();
     handleSaveGameStats(form);
+  });
+
+  // Player card: open on any player name link click (delegated on document body)
+  document.body.addEventListener("click", (event) => {
+    const link = event.target.closest(".player-name-link");
+    if (!link) return;
+    event.preventDefault();
+    const playerId = link.dataset.playerId;
+    if (playerId) openPlayerCard(playerId);
+  });
+
+  // Player card: close
+  elements.playerCardOverlay.addEventListener("click", (event) => {
+    if (event.target === elements.playerCardOverlay || event.target.closest(".player-card-close")) {
+      closePlayerCard();
+    }
+  });
+
+  // Player editor: select change
+  elements.playerEditorSelect.addEventListener("change", renderPlayerEditor);
+
+  // Player editor: save (delegated)
+  elements.playerEditorForm.addEventListener("submit", (event) => {
+    const form = event.target.closest("#playerBioForm");
+    if (!form) return;
+    event.preventDefault();
+    handleSavePlayerProfile(form);
   });
 }
 
@@ -378,6 +412,7 @@ function normalizeTeams(teams) {
     players: Array.isArray(team.players)
       ? team.players.map((player) => ({
           ...player,
+          bio: player.bio || "",
           manualStats: {
             goals: Number(player.manualStats?.goals || 0),
             assists: Number(player.manualStats?.assists || 0),
@@ -443,6 +478,7 @@ function render() {
   renderSchedule();
   renderStatsGameOptions();
   renderStatsEditor();
+  renderPlayerEditorOptions();
 }
 
 function renderView() {
@@ -565,16 +601,11 @@ function renderTeamsOverview() {
   const allTimeStats = getAllTimePlayerStats();
   const statById = new Map(allTimeStats.map((s) => [s.id, s]));
 
-  const teamLogos = {
-    "KDB": "assets/KDB_logo_transparent.png",
-    "Corner FC": "assets/CFC_logo_transparent.png"
-  };
-
   state.teams.forEach((team) => {
     const fragment = template.content.cloneNode(true);
 
     // Insert team logo above team name if one exists
-    const logoSrc = teamLogos[team.name];
+    const logoSrc = TEAM_LOGOS[team.name];
     if (logoSrc) {
       const logoImg = document.createElement("img");
       logoImg.src = logoSrc;
@@ -623,7 +654,7 @@ function renderTeamsOverview() {
         row.className = "roster-row player-stat-row";
         row.innerHTML = `
           <div>
-            <strong>${player.name}</strong>
+            <strong>${playerNameLink(player.id, player.name)}</strong>
             <p class="meta-line">${player.position || "No position set"}</p>
           </div>
           <div class="player-stat-summary">
@@ -841,7 +872,7 @@ function renderAllTimeStats() {
       <div class="schedule-card-header">
         <div>
           <p class="section-tag">${entry.title}</p>
-          <h3>${entry.player?.name || "No leader yet"}</h3>
+          <h3>${entry.player ? playerNameLink(entry.player.id, entry.player.name) : "No leader yet"}</h3>
           <p class="meta-line">${entry.player?.teamName || "Former player"}</p>
         </div>
       </div>
@@ -904,7 +935,7 @@ function renderTeams() {
         row.className = "roster-row editor-player-row";
         row.innerHTML = `
           <div class="editor-player-copy">
-            <strong>${player.name}</strong>
+            <strong>${playerNameLink(player.id, player.name)}</strong>
             <p class="meta-line">${player.position || "No position set"}</p>
           </div>
           <div class="player-actions editor-player-actions">
@@ -1364,7 +1395,7 @@ function renderTeamStatsGroup(group, game) {
         return `
           <div class="stat-player-row">
             <div>
-              <strong>${player.name}</strong>
+              <strong>${playerNameLink(player.id, player.name)}</strong>
               <p class="meta-line">${player.position || "No position set"}</p>
             </div>
             <label>
@@ -1882,6 +1913,154 @@ function getAllTimePlayerStats() {
   });
 }
 
+// ─── Player Card ────────────────────────────────────────────────────────────
+
+function findPlayerAndTeam(playerId) {
+  for (const team of state.teams) {
+    const player = team.players.find((p) => p.id === playerId);
+    if (player) return { player, team };
+  }
+  return null;
+}
+
+function openPlayerCard(playerId) {
+  const result = findPlayerAndTeam(playerId);
+  if (!result) return;
+
+  const { player, team } = result;
+  const allTimeStats = getAllTimePlayerStats();
+  const stats = allTimeStats.find((s) => s.id === playerId) || { goals: 0, assists: 0, awards: 0 };
+
+  const overlay = elements.playerCardOverlay;
+  overlay.querySelector(".player-card-name").textContent = player.name;
+  overlay.querySelector(".player-card-position").textContent = player.position || "Position not set";
+
+  const logoImg = overlay.querySelector(".player-card-team-logo");
+  const logoSrc = TEAM_LOGOS[team.name];
+  if (logoSrc) {
+    logoImg.src = logoSrc;
+    logoImg.alt = team.name;
+    logoImg.style.display = "";
+  } else {
+    logoImg.style.display = "none";
+  }
+
+  overlay.querySelector(".player-card-team-name").textContent = team.name;
+  overlay.querySelector(".player-card-bio").textContent = player.bio || "No bio added yet.";
+
+  overlay.querySelector(".player-card-stats").innerHTML = [
+    { label: "Goals", value: stats.goals },
+    { label: "Assists", value: stats.assists },
+    { label: "Goals + Assists", value: stats.goals + stats.assists },
+    { label: "Awards", value: stats.awards }
+  ].map((row) => `
+    <div class="player-card-stat-row">
+      <span class="player-card-stat-label">${row.label}</span>
+      <span class="player-card-stat-value">${row.value}</span>
+    </div>
+  `).join("");
+
+  overlay.classList.remove("is-hidden");
+}
+
+function closePlayerCard() {
+  elements.playerCardOverlay.classList.add("is-hidden");
+}
+
+function playerNameLink(playerId, name) {
+  return `<a class="player-name-link" data-player-id="${escapeAttribute(playerId)}" href="#">${escapeText(name)}</a>`;
+}
+
+// ─── Player Editor ──────────────────────────────────────────────────────────
+
+function renderPlayerEditorOptions() {
+  if (!elements.playerEditorSelect) return;
+
+  const allPlayers = [];
+  state.teams.forEach((team) => {
+    team.players.forEach((player) => {
+      allPlayers.push({ id: player.id, name: player.name, teamName: team.name });
+    });
+  });
+
+  allPlayers.sort((a, b) => a.name.localeCompare(b.name));
+
+  const currentVal = elements.playerEditorSelect.value;
+  elements.playerEditorSelect.innerHTML = `
+    <option value="">Select a player…</option>
+    ${allPlayers.map((p) => `<option value="${p.id}">${escapeText(p.name)} — ${escapeText(p.teamName)}</option>`).join("")}
+  `;
+
+  if (currentVal && allPlayers.some((p) => p.id === currentVal)) {
+    elements.playerEditorSelect.value = currentVal;
+  }
+
+  renderPlayerEditor();
+}
+
+function renderPlayerEditor() {
+  if (!elements.playerEditorForm) return;
+
+  const playerId = elements.playerEditorSelect.value;
+  if (!playerId) {
+    elements.playerEditorForm.innerHTML = `<p class="empty-copy">Select a player above to edit their profile card.</p>`;
+    return;
+  }
+
+  const result = findPlayerAndTeam(playerId);
+  if (!result) {
+    elements.playerEditorForm.innerHTML = `<p class="empty-copy">Player not found.</p>`;
+    return;
+  }
+
+  const { player, team } = result;
+
+  elements.playerEditorForm.innerHTML = `
+    <form id="playerBioForm" class="stack-form">
+      <input type="hidden" name="playerId" value="${escapeAttribute(player.id)}">
+      <div class="field-row">
+        <label>
+          Player name
+          <input type="text" name="playerName" value="${escapeAttribute(player.name)}" required>
+        </label>
+        <label>
+          Position
+          <input type="text" name="position" value="${escapeAttribute(player.position || "")}" placeholder="e.g. Forward, Goalkeeper">
+        </label>
+      </div>
+      <label>
+        Team
+        <input type="text" value="${escapeAttribute(team.name)}" readonly>
+      </label>
+      <label>
+        Bio
+        <textarea name="bio" rows="4" placeholder="Write a short bio for this player…">${escapeText(player.bio || "")}</textarea>
+      </label>
+      <div class="player-actions">
+        <button type="submit">Save Player Card</button>
+        <button type="button" class="ghost-button" onclick="openPlayerCard('${escapeAttribute(player.id)}')">Preview Card</button>
+      </div>
+    </form>
+  `;
+}
+
+function handleSavePlayerProfile(form) {
+  const formData = new FormData(form);
+  const playerId = formData.get("playerId")?.toString();
+  if (!playerId) return;
+
+  const result = findPlayerAndTeam(playerId);
+  if (!result) return;
+
+  result.player.name = formData.get("playerName")?.toString().trim() || result.player.name;
+  result.player.position = formData.get("position")?.toString().trim() || "";
+  result.player.bio = formData.get("bio")?.toString().trim() || "";
+
+  persistAndRender();
+  elements.playerEditorSelect.value = playerId;
+  renderPlayerEditor();
+}
+
 function getCurrentUser() {
   const userId = authState.session?.userId;
   if (!userId) return null;
@@ -1981,7 +2160,8 @@ function getWeeklyTournamentMvp(games) {
   const [winnerId] = Array.from(counts.entries())
     .sort((a, b) => b[1] - a[1] || findPlayerNameById(a[0], games[0]).localeCompare(findPlayerNameById(b[0], games[0])))[0];
 
-  return findPlayerNameById(winnerId, games[0]);
+  const winnerName = findPlayerNameById(winnerId, games[0]);
+  return winnerName ? playerNameLink(winnerId, winnerName) : "";
 }
 
 function findPlayerNameById(playerId, game) {
@@ -2291,7 +2471,7 @@ function renderLeaderboard() {
     return `
       <tr>
         <td><span class="leaderboard-rank${rankClass}">${rank}</span></td>
-        <td><strong>${escapeText(player.name)}</strong></td>
+        <td><strong>${playerNameLink(player.id, player.name)}</strong></td>
         <td>${escapeText(player.teamName || "—")}</td>
         <td>${player.goals}</td>
         <td>${player.assists}</td>
