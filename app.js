@@ -2133,8 +2133,8 @@ function escapeText(value) {
 
 // ─── League Standings ───────────────────────────────────────────────────────
 
-function calculateStandings() {
-  // Build a record per team from all Final games
+function calculateStandings(tournamentId) {
+  // Build a record per team from Final games (optionally filtered to a tournament)
   const records = new Map();
 
   state.teams.forEach((team) => {
@@ -2152,7 +2152,7 @@ function calculateStandings() {
   });
 
   state.games
-    .filter((game) => game.status === "Final")
+    .filter((game) => game.status === "Final" && (!tournamentId || game.tournamentId === tournamentId))
     .forEach((game) => {
       const score = calculateScoreline(game);
       const home = records.get(game.homeTeamId);
@@ -2192,10 +2192,25 @@ function calculateStandings() {
   });
 }
 
+function getCurrentWeekTournament() {
+  const { start, end } = getWeekWindow(0);
+  return state.tournaments
+    .filter((tournament) => rangesOverlap(tournament.startDate, tournament.endDate, start, end))
+    .sort((a, b) => a.startDate.localeCompare(b.startDate))[0] || null;
+}
+
 function renderStandings() {
   if (!elements.homeStandings) return;
 
-  const standings = calculateStandings();
+  const currentTournament = getCurrentWeekTournament();
+  const titleEl = document.querySelector("#standingsTitle");
+  if (titleEl) {
+    titleEl.textContent = currentTournament
+      ? `${currentTournament.name} Standings`
+      : "League Standings";
+  }
+
+  const standings = calculateStandings(currentTournament?.id);
 
   if (!standings.length) {
     elements.homeStandings.innerHTML = `<p class="empty-copy">No teams found. Add teams in the Editor to see standings.</p>`;
