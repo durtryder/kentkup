@@ -1347,15 +1347,6 @@ function renderStatsEditor() {
             `).join("")}
           </select>
         </label>
-        <label>
-          Best Goalie
-          <select name="bestGoaliePlayerId">
-            <option value="">Select player</option>
-            ${allPlayers.map((player) => `
-              <option value="${player.id}"${game.awards?.bestGoaliePlayerId === player.id ? " selected" : ""}>${player.name}</option>
-            `).join("")}
-          </select>
-        </label>
       </div>
       <div class="stats-groups">
         ${rosterGroups.map((group) => renderTeamStatsGroup(group, game)).join("")}
