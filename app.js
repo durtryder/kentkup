@@ -2,7 +2,7 @@ const AUTH_SESSION_KEY = "kent-kup-auth-session-v1";
 const AUTH_VISITOR_KEY = "kent-kup-visitor-v1";
 
 // ─── Firebase ────────────────────────────────────────────────────────────────
-var db, STATE_DOC, ACCOUNTS_DOC, firebaseReady = false;
+var db, STATE_DOC, ACCOUNTS_DOC, storage, firebaseReady = false;
 try {
   firebase.initializeApp({
     apiKey: "AIzaSyBs3_E4ljrI3NL3pAOlasTkk6o3ky_BgX0",
@@ -16,6 +16,7 @@ try {
   db = firebase.firestore();
   STATE_DOC = db.collection("config").doc("appState");
   ACCOUNTS_DOC = db.collection("config").doc("accounts");
+  var storage = firebase.storage();
   firebaseReady = true;
   console.log("Firebase initialized successfully");
 } catch (err) {
@@ -413,6 +414,7 @@ function normalizeTeams(teams) {
       ? team.players.map((player) => ({
           ...player,
           bio: player.bio || "",
+          photoUrl: player.photoUrl || "",
           manualStats: {
             goals: Number(player.manualStats?.goals || 0),
             assists: Number(player.manualStats?.assists || 0),
@@ -1948,6 +1950,19 @@ function openPlayerCard(playerId) {
   overlay.querySelector(".player-card-team-name").textContent = team.name;
   overlay.querySelector(".player-card-bio").textContent = player.bio || "No bio added yet.";
 
+  // Photo
+  const photoImg = overlay.querySelector(".player-card-photo-img");
+  const photoPlaceholder = overlay.querySelector(".player-card-photo-placeholder");
+  if (player.photoUrl) {
+    photoImg.src = player.photoUrl;
+    photoImg.alt = player.name;
+    photoImg.style.display = "";
+    photoPlaceholder.style.display = "none";
+  } else {
+    photoImg.style.display = "none";
+    photoPlaceholder.style.display = "";
+  }
+
   overlay.querySelector(".player-card-stats").innerHTML = [
     { label: "Goals", value: stats.goals },
     { label: "Assists", value: stats.assists },
@@ -2015,6 +2030,13 @@ function renderPlayerEditor() {
 
   const { player, team } = result;
 
+  const currentPhotoHtml = player.photoUrl
+    ? `<div class="photo-editor-current">
+         <img src="${escapeAttribute(player.photoUrl)}" alt="${escapeAttribute(player.name)}" class="photo-editor-thumb">
+         <p class="meta-line">Current photo</p>
+       </div>`
+    : "";
+
   elements.playerEditorForm.innerHTML = `
     <form id="playerBioForm" class="stack-form">
       <input type="hidden" name="playerId" value="${escapeAttribute(player.id)}">
@@ -2036,12 +2058,42 @@ function renderPlayerEditor() {
         Bio
         <textarea name="bio" rows="4" placeholder="Write a short bio for this player…">${escapeText(player.bio || "")}</textarea>
       </label>
+
+      <div class="photo-editor-section">
+        <p class="section-tag">Player Photo</p>
+        ${currentPhotoHtml}
+        <label class="photo-file-label">
+          Choose photo
+          <input type="file" id="photoFileInput" accept="image/*" class="photo-file-input">
+        </label>
+        <div id="photoCropArea" class="photo-crop-area" style="display:none;">
+          <div class="photo-crop-viewport">
+            <canvas id="photoCropCanvas" width="300" height="400"></canvas>
+          </div>
+          <div class="photo-crop-controls">
+            <label class="photo-zoom-label">
+              Zoom
+              <input type="range" id="photoZoomSlider" min="1" max="3" step="0.05" value="1">
+            </label>
+            <p class="meta-line">Drag image to reposition</p>
+          </div>
+          <div class="player-actions">
+            <button type="button" id="photoUploadBtn" class="primary-button">Upload Photo</button>
+            <button type="button" id="photoCancelBtn" class="ghost-button">Cancel</button>
+          </div>
+          <div id="photoUploadStatus" class="meta-line"></div>
+        </div>
+      </div>
+
       <div class="player-actions">
         <button type="submit">Save Player Card</button>
         <button type="button" class="ghost-button" onclick="openPlayerCard('${escapeAttribute(player.id)}')">Preview Card</button>
       </div>
     </form>
   `;
+
+  // Wire up the crop/zoom tool
+  initPhotoCropper(player.id);
 }
 
 function handleSavePlayerProfile(form) {
@@ -2059,6 +2111,204 @@ function handleSavePlayerProfile(form) {
   persistAndRender();
   elements.playerEditorSelect.value = playerId;
   renderPlayerEditor();
+}
+
+// ─── Photo Crop / Zoom / Upload ─────────────────────────────────────────────
+
+var cropState = { img: null, zoom: 1, panX: 0, panY: 0, dragging: false, lastX: 0, lastY: 0, playerId: "" };
+
+function initPhotoCropper(playerId) {
+  const fileInput = document.querySelector("#photoFileInput");
+  if (!fileInput) return;
+
+  cropState.playerId = playerId;
+
+  fileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        cropState.img = img;
+        cropState.zoom = 1;
+        cropState.panX = 0;
+        cropState.panY = 0;
+
+        const slider = document.querySelector("#photoZoomSlider");
+        if (slider) slider.value = "1";
+
+        const area = document.querySelector("#photoCropArea");
+        if (area) area.style.display = "";
+
+        drawCropCanvas();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Zoom slider
+  const slider = document.querySelector("#photoZoomSlider");
+  if (slider) {
+    slider.addEventListener("input", () => {
+      cropState.zoom = Number(slider.value);
+      drawCropCanvas();
+    });
+  }
+
+  // Pan via drag on canvas
+  const canvas = document.querySelector("#photoCropCanvas");
+  if (canvas) {
+    canvas.addEventListener("mousedown", (e) => { startDrag(e.clientX, e.clientY); });
+    canvas.addEventListener("mousemove", (e) => { moveDrag(e.clientX, e.clientY); });
+    canvas.addEventListener("mouseup", stopDrag);
+    canvas.addEventListener("mouseleave", stopDrag);
+    canvas.addEventListener("touchstart", (e) => { e.preventDefault(); startDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+    canvas.addEventListener("touchmove", (e) => { e.preventDefault(); moveDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+    canvas.addEventListener("touchend", stopDrag);
+  }
+
+  // Upload button
+  const uploadBtn = document.querySelector("#photoUploadBtn");
+  if (uploadBtn) {
+    uploadBtn.addEventListener("click", () => handlePhotoUpload());
+  }
+
+  // Cancel button
+  const cancelBtn = document.querySelector("#photoCancelBtn");
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", () => {
+      document.querySelector("#photoCropArea").style.display = "none";
+      cropState.img = null;
+    });
+  }
+}
+
+function startDrag(x, y) {
+  cropState.dragging = true;
+  cropState.lastX = x;
+  cropState.lastY = y;
+}
+
+function moveDrag(x, y) {
+  if (!cropState.dragging) return;
+  cropState.panX += x - cropState.lastX;
+  cropState.panY += y - cropState.lastY;
+  cropState.lastX = x;
+  cropState.lastY = y;
+  drawCropCanvas();
+}
+
+function stopDrag() {
+  cropState.dragging = false;
+}
+
+function drawCropCanvas() {
+  const canvas = document.querySelector("#photoCropCanvas");
+  if (!canvas || !cropState.img) return;
+
+  const ctx = canvas.getContext("2d");
+  const cw = canvas.width;
+  const ch = canvas.height;
+
+  ctx.clearRect(0, 0, cw, ch);
+  ctx.fillStyle = "rgba(22, 35, 31, 0.06)";
+  ctx.fillRect(0, 0, cw, ch);
+
+  const img = cropState.img;
+  const zoom = cropState.zoom;
+
+  // Scale image to cover canvas, then apply zoom
+  const scale = Math.max(cw / img.width, ch / img.height) * zoom;
+  const drawW = img.width * scale;
+  const drawH = img.height * scale;
+
+  // Center + pan
+  const drawX = (cw - drawW) / 2 + cropState.panX;
+  const drawY = (ch - drawH) / 2 + cropState.panY;
+
+  ctx.drawImage(img, drawX, drawY, drawW, drawH);
+}
+
+function getCroppedBlob() {
+  return new Promise((resolve) => {
+    const canvas = document.querySelector("#photoCropCanvas");
+    if (!canvas) { resolve(null); return; }
+
+    // Create an output canvas at higher resolution for quality
+    const outputCanvas = document.createElement("canvas");
+    outputCanvas.width = 450;
+    outputCanvas.height = 600;
+    const ctx = outputCanvas.getContext("2d");
+
+    const img = cropState.img;
+    const zoom = cropState.zoom;
+    const cw = canvas.width;
+    const ch = canvas.height;
+    const ow = outputCanvas.width;
+    const oh = outputCanvas.height;
+
+    const scale = Math.max(cw / img.width, ch / img.height) * zoom;
+    const drawW = img.width * scale;
+    const drawH = img.height * scale;
+    const drawX = (cw - drawW) / 2 + cropState.panX;
+    const drawY = (ch - drawH) / 2 + cropState.panY;
+
+    // Scale from preview coords to output coords
+    const ratio = ow / cw;
+    ctx.drawImage(img, drawX * ratio, drawY * ratio, drawW * ratio, drawH * ratio);
+
+    outputCanvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85);
+  });
+}
+
+async function handlePhotoUpload() {
+  const statusEl = document.querySelector("#photoUploadStatus");
+  const uploadBtn = document.querySelector("#photoUploadBtn");
+
+  if (!firebaseReady || !storage) {
+    if (statusEl) statusEl.textContent = "Firebase Storage not available.";
+    return;
+  }
+
+  if (!cropState.img || !cropState.playerId) {
+    if (statusEl) statusEl.textContent = "No image selected.";
+    return;
+  }
+
+  if (uploadBtn) uploadBtn.disabled = true;
+  if (statusEl) statusEl.textContent = "Uploading…";
+
+  try {
+    const blob = await getCroppedBlob();
+    if (!blob) throw new Error("Failed to crop image.");
+
+    const ref = storage.ref().child(`player-photos/${cropState.playerId}.jpg`);
+    await ref.put(blob, { contentType: "image/jpeg" });
+    const downloadUrl = await ref.getDownloadURL();
+
+    // Save URL to the player object
+    const result = findPlayerAndTeam(cropState.playerId);
+    if (result) {
+      result.player.photoUrl = downloadUrl;
+      persistAndRender();
+    }
+
+    if (statusEl) statusEl.textContent = "Photo uploaded successfully!";
+
+    // Refresh the editor to show the new photo
+    setTimeout(() => {
+      elements.playerEditorSelect.value = cropState.playerId;
+      renderPlayerEditor();
+    }, 800);
+
+  } catch (err) {
+    console.error("[photoUpload] error:", err);
+    if (statusEl) statusEl.textContent = `Upload failed: ${err.message || err}`;
+    if (uploadBtn) uploadBtn.disabled = false;
+  }
 }
 
 function getCurrentUser() {
