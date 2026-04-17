@@ -384,8 +384,8 @@ label {
 
 .team-logo {
   display: block;
-  width: 180px;
-  height: auto;
+  height: 135px;
+  width: auto;
   margin: 0.5rem auto 0.25rem;
 }
 
