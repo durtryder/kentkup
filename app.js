@@ -566,7 +566,8 @@ function renderTeamsOverview() {
   const statById = new Map(allTimeStats.map((s) => [s.id, s]));
 
   const teamLogos = {
-    "KDB": "assets/KDB_logo_transparent.png"
+    "KDB": "assets/KDB_logo_transparent.png",
+    "Corner FC": "assets/CFC_logo_transparent.png"
   };
 
   state.teams.forEach((team) => {
