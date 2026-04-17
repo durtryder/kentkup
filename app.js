@@ -204,6 +204,14 @@ function bindEvents() {
       if (accountId) handleDeleteAccount(accountId);
     });
   }
+
+  // Delegated handler for the stats form — survives Firestore snapshot re-renders
+  elements.statsEditor.addEventListener("submit", (event) => {
+    const form = event.target.closest("#statsForm");
+    if (!form) return;
+    event.preventDefault();
+    handleSaveGameStats(form);
+  });
 }
 
 function handleSaveRules() {
@@ -312,7 +320,10 @@ function loadLocalVisitorSession() {
 
 function saveState() {
   if (!firebaseReady || !STATE_DOC) return;
-  STATE_DOC.set(state).catch((err) => console.error("Failed to save state:", err));
+  STATE_DOC.set(state).catch((err) => {
+    console.error("Failed to save state:", err);
+    alert("Failed to save to server: " + (err?.message || err) + "\n\nYour changes may not persist. Check Firestore rules in Firebase Console.");
+  });
 }
 
 function saveAuthState() {
@@ -554,8 +565,24 @@ function renderTeamsOverview() {
   const allTimeStats = getAllTimePlayerStats();
   const statById = new Map(allTimeStats.map((s) => [s.id, s]));
 
+  const teamLogos = {
+    "KDB": "assets/KDB_logo_transparent.png"
+  };
+
   state.teams.forEach((team) => {
     const fragment = template.content.cloneNode(true);
+
+    // Insert team logo above team name if one exists
+    const logoSrc = teamLogos[team.name];
+    if (logoSrc) {
+      const logoImg = document.createElement("img");
+      logoImg.src = logoSrc;
+      logoImg.alt = team.name + " logo";
+      logoImg.className = "team-logo";
+      const header = fragment.querySelector(".team-card-header");
+      header.parentNode.insertBefore(logoImg, header);
+    }
+
     fragment.querySelector(".team-name").textContent = team.name;
     fragment.querySelector(".team-meta").textContent = `${team.players.length} players`;
 
@@ -1336,32 +1363,7 @@ function renderStatsEditor() {
     </form>
   `;
 
-  elements.statsEditor.querySelector("#statsForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-
-    game.status = formData.get("status")?.toString() || "Scheduled";
-    game.awards = {
-      mvpPlayerId: formData.get("mvpPlayerId")?.toString() || "",
-      bestGoaliePlayerId: formData.get("bestGoaliePlayerId")?.toString() || ""
-    };
-
-    game.playerStats = {};
-    rosterGroups.forEach((group) => {
-      group.players.forEach((player) => {
-        const goals = Number(formData.get(`goals_${player.id}`) || 0);
-        const assists = Number(formData.get(`assists_${player.id}`) || 0);
-        if (goals > 0 || assists > 0) {
-          game.playerStats[player.id] = { goals, assists, teamId: group.teamId };
-        }
-      });
-    });
-
-    persistAndRender();
-    elements.statsGameSelect.value = game.id;
-    renderStatsEditor();
-  });
+  // Submit handler is delegated in bindEvents() so it survives re-renders.
 }
 
 function renderTeamStatsGroup(group, game) {
@@ -2059,6 +2061,43 @@ function shouldSyncGameRosterFromTeams(game) {
   const hasStats = Object.keys(game.playerStats || {}).length > 0;
   const hasAwards = Boolean(game.awards?.mvpPlayerId || game.awards?.bestGoaliePlayerId);
   return !hasStats && !hasAwards && game.status !== "Final";
+}
+
+function handleSaveGameStats(form) {
+  const gameId = elements.statsGameSelect.value;
+  const game = state.games.find((g) => g.id === gameId);
+  if (!game) {
+    console.warn("[saveStats] game not found for id:", gameId);
+    return;
+  }
+
+  const formData = new FormData(form);
+
+  game.status = formData.get("status")?.toString() || "Scheduled";
+  game.awards = {
+    mvpPlayerId: formData.get("mvpPlayerId")?.toString() || "",
+    bestGoaliePlayerId: formData.get("bestGoaliePlayerId")?.toString() || ""
+  };
+
+  // Build roster groups from the game's current roster snapshot
+  ensureGameRosterSnapshot(game);
+  const rosterEntries = Object.entries(game.rosters || {});
+
+  game.playerStats = {};
+  rosterEntries.forEach(([teamId, players]) => {
+    players.forEach((player) => {
+      const goals = Number(formData.get(`goals_${player.id}`) || 0);
+      const assists = Number(formData.get(`assists_${player.id}`) || 0);
+      if (goals > 0 || assists > 0) {
+        game.playerStats[player.id] = { goals, assists, teamId };
+      }
+    });
+  });
+
+  console.log("[saveStats] playerStats saved:", JSON.stringify(game.playerStats));
+  persistAndRender();
+  elements.statsGameSelect.value = game.id;
+  renderStatsEditor();
 }
 
 function persistAndRender() {

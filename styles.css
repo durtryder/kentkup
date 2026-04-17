@@ -382,6 +382,13 @@ label {
   align-items: center;
 }
 
+.team-logo {
+  display: block;
+  max-width: 120px;
+  height: auto;
+  margin: 0 auto 0.5rem;
+}
+
 .team-name,
 .list-card h3,
 .game-card h3 {
