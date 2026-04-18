@@ -2824,6 +2824,7 @@ function renderLeaderboard() {
         <td>${player.goals}</td>
         <td>${player.assists}</td>
         <td>${player.goals + player.assists}</td>
+        <td>${player.goals * 2 + player.assists}</td>
         <td>${player.awards}</td>
       </tr>
     `;
@@ -2839,6 +2840,7 @@ function renderLeaderboard() {
           <th title="Goals">G</th>
           <th title="Assists">A</th>
           <th title="Goals + Assists">G+A</th>
+          <th title="Points (Goals×2 + Assists)">PTS</th>
           <th title="Awards (MVP + Best Goalie)">Awards</th>
         </tr>
       </thead>
