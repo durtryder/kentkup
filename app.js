@@ -201,6 +201,16 @@ function bindEvents() {
   });
   elements.calendarPrev.addEventListener("click", () => { calendarMonth--; if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; } renderCalendar(); });
   elements.calendarNext.addEventListener("click", () => { calendarMonth++; if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; } renderCalendar(); });
+  elements.calendarGrid.addEventListener("click", (event) => {
+    const chip = event.target.closest(".calendar-game-chip");
+    if (!chip) return;
+    event.preventDefault();
+    const gameId = chip.dataset.gameId;
+    if (!gameId) return;
+    elements.statsGameSelect.value = gameId;
+    renderStatsEditor();
+    elements.statsEditor.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   elements.loginForm.addEventListener("submit", handleLogin);
   elements.adminSetupForm.addEventListener("submit", handleAdminSetup);
   elements.createAccountForm.addEventListener("submit", handleAdminCreateAccount);
@@ -2625,7 +2635,7 @@ function renderCalendar() {
         ? `${home} ${score.home}-${score.away} ${away}`
         : `${home} vs ${away}`;
 
-      return `<div class="calendar-game-chip ${statusClass}" title="${formatTime(game.time)} · ${game.location || ""}">${label}</div>`;
+      return `<a href="#" class="calendar-game-chip ${statusClass}" data-game-id="${escapeAttribute(game.id)}" title="${formatTime(game.time)} · ${game.location || ""}">${label}</a>`;
     }).join("");
 
     html += `

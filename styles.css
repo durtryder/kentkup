@@ -1131,7 +1131,13 @@ label {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: default;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+}
+
+.calendar-game-chip:hover {
+  filter: brightness(0.92);
 }
 
 .calendar-game-scheduled {
