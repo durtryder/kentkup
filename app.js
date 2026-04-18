@@ -2803,13 +2803,15 @@ function renderLeaderboard() {
     return;
   }
 
-  // Sort by goals, then assists, then awards, then name
+  // Sort by PTS (Goals×2 + Assists), then goals, then assists, then name
   const sorted = players
     .slice()
     .sort((a, b) => {
+      const ptsA = a.goals * 2 + a.assists;
+      const ptsB = b.goals * 2 + b.assists;
+      if (ptsB !== ptsA) return ptsB - ptsA;
       if (b.goals !== a.goals) return b.goals - a.goals;
       if (b.assists !== a.assists) return b.assists - a.assists;
-      if (b.awards !== a.awards) return b.awards - a.awards;
       return a.name.localeCompare(b.name);
     });
 
