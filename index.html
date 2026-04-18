@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
 
@@ -379,6 +379,21 @@
         <section class="panel span-12">
           <div class="panel-heading">
             <div>
+              <p class="section-tag">Season Overview</p>
+              <h2>Game Calendar</h2>
+            </div>
+            <div class="calendar-nav">
+              <button type="button" id="calendarPrev" class="ghost-button">&larr;</button>
+              <span id="calendarMonthLabel" class="calendar-month-label"></span>
+              <button type="button" id="calendarNext" class="ghost-button">&rarr;</button>
+            </div>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
+
+        <section class="panel span-12">
+          <div class="panel-heading">
+            <div>
               <p class="section-tag">Stats Desk</p>
               <h2>Game Stats Editor</h2>
             </div>
@@ -486,6 +501,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
-  <script src="app.js?v=20"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>

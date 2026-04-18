@@ -128,6 +128,9 @@ let manualStatEditor = {
   draft: null
 };
 
+var calendarYear = new Date().getFullYear();
+var calendarMonth = new Date().getMonth();
+
 const elements = {
   pageShell: document.querySelector("#pageShell"),
   gateView: document.querySelector("#gateView"),
@@ -170,6 +173,10 @@ const elements = {
   scheduleBoard: document.querySelector("#scheduleBoard"),
   statsGameSelect: document.querySelector("#statsGameSelect"),
   statsEditor: document.querySelector("#statsEditor"),
+  calendarGrid: document.querySelector("#calendarGrid"),
+  calendarMonthLabel: document.querySelector("#calendarMonthLabel"),
+  calendarPrev: document.querySelector("#calendarPrev"),
+  calendarNext: document.querySelector("#calendarNext"),
   playerCardOverlay: document.querySelector("#playerCardOverlay"),
   playerEditorSelect: document.querySelector("#playerEditorSelect"),
   playerEditorForm: document.querySelector("#playerEditorForm")
@@ -192,6 +199,8 @@ function bindEvents() {
       setView(button.dataset.view || "home");
     });
   });
+  elements.calendarPrev.addEventListener("click", () => { calendarMonth--; if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; } renderCalendar(); });
+  elements.calendarNext.addEventListener("click", () => { calendarMonth++; if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; } renderCalendar(); });
   elements.loginForm.addEventListener("submit", handleLogin);
   elements.adminSetupForm.addEventListener("submit", handleAdminSetup);
   elements.createAccountForm.addEventListener("submit", handleAdminCreateAccount);
@@ -478,6 +487,7 @@ function render() {
   renderTournamentOptions();
   renderTournaments();
   renderSchedule();
+  renderCalendar();
   renderStatsGameOptions();
   renderStatsEditor();
   renderPlayerEditorOptions();
@@ -2559,6 +2569,84 @@ function escapeText(value) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+// ─── Game Calendar ──────────────────────────────────────────────────────────
+
+function renderCalendar() {
+  if (!elements.calendarGrid) return;
+
+  const monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"];
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  elements.calendarMonthLabel.textContent = `${monthNames[calendarMonth]} ${calendarYear}`;
+
+  // Build a map of date string → games for this month
+  const gamesByDate = new Map();
+  state.games.forEach((game) => {
+    if (!game.date) return;
+    const d = new Date(game.date + "T00:00:00");
+    if (d.getFullYear() === calendarYear && d.getMonth() === calendarMonth) {
+      const key = game.date;
+      if (!gamesByDate.has(key)) gamesByDate.set(key, []);
+      gamesByDate.get(key).push(game);
+    }
+  });
+
+  const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  const today = new Date();
+  const todayStr = toDateInputValue(today);
+
+  let html = `<div class="calendar-header-row">`;
+  dayNames.forEach((d) => { html += `<div class="calendar-day-header">${d}</div>`; });
+  html += `</div><div class="calendar-body">`;
+
+  // Leading empty cells
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div class="calendar-cell calendar-empty"></div>`;
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const isToday = dateStr === todayStr;
+    const games = gamesByDate.get(dateStr) || [];
+
+    const gameChips = games.map((game) => {
+      const teams = getMatchupTeams(game);
+      const home = teams[0]?.name || "?";
+      const away = teams[1]?.name || "?";
+      const score = calculateScoreline(game);
+      const statusClass = game.status === "Final" ? "calendar-game-final" :
+                          game.status === "Live" ? "calendar-game-live" : "calendar-game-scheduled";
+
+      const label = game.status === "Final"
+        ? `${home} ${score.home}-${score.away} ${away}`
+        : `${home} vs ${away}`;
+
+      return `<div class="calendar-game-chip ${statusClass}" title="${formatTime(game.time)} · ${game.location || ""}">${label}</div>`;
+    }).join("");
+
+    html += `
+      <div class="calendar-cell${isToday ? " calendar-today" : ""}${games.length ? " calendar-has-games" : ""}">
+        <span class="calendar-date">${day}</span>
+        ${gameChips}
+      </div>
+    `;
+  }
+
+  // Trailing empty cells to complete the grid
+  const totalCells = firstDay + daysInMonth;
+  const remainder = totalCells % 7;
+  if (remainder > 0) {
+    for (let i = 0; i < 7 - remainder; i++) {
+      html += `<div class="calendar-cell calendar-empty"></div>`;
+    }
+  }
+
+  html += `</div>`;
+  elements.calendarGrid.innerHTML = html;
 }
 
 // ─── League Standings ───────────────────────────────────────────────────────
